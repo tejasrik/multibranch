@@ -1,48 +1,33 @@
-pipeline {
-    agent {
-        kubernetes {
-            label "automation-tests-slave"
-            containerTemplate {
-                name "k8s-slave-jdk12-alpine"
-                image "e2e-tests:1.0.2"
-                ttyEnabled true
-                command 'cat'
-            }
-        }
+node{
+    stage ('Git Checkout'){
+  git'https://github.com/tejasrik/maven-project.git'
+  
     }
-    stages {
-        stage('Git Status') {
-            steps {
-                sh 'git status'
-                echo 'Received Git Status.'
-            }
-        }
-        stage("Prerequisites") {
-            steps {
-                container('k8s-slave-jdk12-alpine') {
-                    sh 'apk update && apk add maven git'
-                }
-            }
-        }
-        stage("Build Default") {
-            steps {
-                container('k8s-slave-jdk12-alpine') {
-                    sh "mvn test"
-                }
-            }
-        }
+    
+    stage('Compile-Package'){
+      // Get maven home path
+     //def mvnHome =  tool name: 'maven3.6.3', type: 'maven' 
+     //batlabel "${mvnHome}/bin/mvn package"
+  // bat "${mvnHome}/bin/mvn clean package"
+ // bat label: '', script: "${mvnHome}/bin/mvn clean package"
+ bat label: '', script: 'mvn clean package'
     }
-    post {
-        always {
-            script {
-                allure([
-                        includeProperties: false,
-                        jdk              : '',
-                        properties       : [],
-                        reportBuildPolicy: 'ALWAYS',
-                        results          : [[path: 'target/allure-results']]
-                ])
-            }
-        }
+   
+   stage('SonarQube Analysis') {
+       withSonarQubeEnv() { // You can override the credential to be used
+bat label: '', script: 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.6.0.1398:sonar'
+}
+    stage('publish docker'){
+    bat label: '', script: 'docker build -t tejasrik/jenkinspipeline .'
+    bat label:'',script:'docker login -u tejasrik -p Tejasri@6523'
+    bat label:'',script:'docker push tejasrik/jenkinspipeline'
+    bat label:'',script:'docker run -d tejasrik/jenkinspipeline'
     }
+    
+    
+        
+   }
+    
+  
+  
 }
